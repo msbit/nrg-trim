@@ -3,6 +3,9 @@ SOURCE_DIR ?= source
 
 CXXFLAGS := -Wall -Wextra
 CXXFLAGS += -std=c++11
+CXXFLAGS += -fsanitize=address
+
+LDFLAGS := -fsanitize=address
 
 LDLIBS := -lc++
 
