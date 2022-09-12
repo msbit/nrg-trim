@@ -23,3 +23,8 @@ $(BUILD_DIR)/nrg-trim.o: $(SOURCE_DIR)/nrg_file.h
 
 clean:
 	rm -rf $(BUILD_DIR)
+
+test: $(BUILD_DIR)/nrg-trim
+	$(BUILD_DIR)/nrg-trim fixtures/test.v1.nrg
+	$(BUILD_DIR)/nrg-trim fixtures/test.v2.nrg
+	md5sum --check fixtures/expected.md5
