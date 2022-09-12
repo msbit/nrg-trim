@@ -33,20 +33,20 @@ nrg_version get_version(std::ifstream &f) {
 int64_t get_offset(std::ifstream &f, nrg_version v) {
   rewinder r(f);
 
-  if (v == nrg_version::none) {
+  uint64_t offset = 0;
+
+  switch (v) {
+  case nrg_version::none:
     throw std::invalid_argument("can't get offset for non-NRG file");
-  }
-
-  uint64_t offset;
-  if (v == nrg_version::v1) {
-    // TODO very iffy
+    break;
+  case nrg_version::v1:
     f.seekg(-4, std::ios::end);
-    f.read(reinterpret_cast<char *>(&offset), 4);
-  }
-
-  if (v == nrg_version::v2) {
+    f.read(reinterpret_cast<char *>(&offset) + 4, 4);
+    break;
+  case nrg_version::v2:
     f.seekg(-8, std::ios::end);
     f.read(reinterpret_cast<char *>(&offset), 8);
+    break;
   }
 
   return ntohll(offset);
