@@ -23,7 +23,7 @@ nrg_version get_version(std::ifstream &f) {
   }
 
   f.read(reinterpret_cast<char *>(id), 4);
-  if (memcmp("NER5", id, 4) == 0) {
+  if (memcmp("NERO", id, 4) == 0) {
     return nrg_version::v1;
   }
 
