@@ -8,9 +8,9 @@
 
 constexpr int64_t chunksize = 1024 * 1024;
 
-void trim(const char *);
+void trim(const std::string &);
 
-int without_extension(const char *, char *, int);
+std::string without_extension(const std::string &);
 
 int main(int argc, char **argv) {
   for (auto i = 1; i < argc; i++) {
@@ -18,29 +18,23 @@ int main(int argc, char **argv) {
   }
 }
 
-void trim(const char *filename) {
-  std::ifstream in(filename);
+void trim(const std::string &input) {
+  std::ifstream in(input);
 
   auto v = get_version(in);
   if (v == nrg_version::none) {
-    printf("%s: not an NRG file\n", filename);
+    printf("%s: not an NRG file\n", input.c_str());
     return;
   }
 
-  auto length = strlen(filename);
-  if (length > 1024) {
+  if (input.size() > 1024) {
     fprintf(stderr, "filename too big\n");
     return;
   }
 
-  // enough space for original + '.iso\0'
-  std::unique_ptr<char[]> output(new char[length + 5]);
-  length = without_extension(filename, output.get(), length);
-  memcpy(output.get() + length, ".iso", 5);
-
   auto count = get_offset(in, v);
 
-  std::ofstream out(output.get());
+  std::ofstream out(without_extension(input) + ".iso");
 
   in.seekg(0, std::ios::beg);
   std::unique_ptr<char[]> chunk(new char[chunksize]);
@@ -51,32 +45,23 @@ void trim(const char *filename) {
   }
 }
 
-int without_extension(const char *input, char *output, int length) {
-  auto dotpos = strrchr(input, '.');
-  if (dotpos == nullptr || dotpos == input) {
+std::string without_extension(const std::string &input) {
+  auto dotpos = input.find_last_of('.');
+  if (dotpos == std::string::npos || dotpos == 0) {
     // no '.' character in filename, or '.' is first character, copy it all
-    memcpy(output, input, length);
-    output[length] = '\0';
-    return length;
+    return input;
   }
 
-  auto slashpos = strrchr(input, '/');
-  if (slashpos != nullptr && dotpos < slashpos) {
+  auto slashpos = input.find_last_of('/');
+  if (slashpos != std::string::npos && dotpos < slashpos) {
     // filename contains '/' in position after '.', copy it all
-    memcpy(output, input, length);
-    output[length] = '\0';
-    return length;
+    return input;
   }
 
-  if (slashpos != nullptr && (dotpos - slashpos) == 1) {
+  if (slashpos != std::string::npos && (dotpos - slashpos) == 1) {
     // filename contains '/.' for last slash and dot positions, copy it all
-    memcpy(output, input, length);
-    output[length] = '\0';
-    return length;
+    return input;
   }
 
-  length = dotpos - input;
-  memcpy(output, input, length);
-  output[length] = '\0';
-  return length;
+  return input.substr(0, dotpos);
 }
