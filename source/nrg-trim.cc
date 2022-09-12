@@ -18,18 +18,6 @@ int main(int argc, char **argv) {
   }
 }
 
-template <typename T> struct allocated {
-  T *ptr;
-
-  allocated(size_t size) : ptr(static_cast<T *>(malloc(size))) {
-    if (ptr == nullptr) {
-      throw std::runtime_error("malloc");
-    }
-  }
-
-  ~allocated() { free(ptr); }
-};
-
 void trim(const char *filename) {
   std::ifstream in(filename);
 
@@ -46,19 +34,19 @@ void trim(const char *filename) {
   }
 
   // enough space for original + '.iso\0'
-  allocated<char> output(length + 5);
-  length = without_extension(filename, output.ptr, length);
-  memcpy(output.ptr + length, ".iso", 5);
+  std::unique_ptr<char[]> output(new char[length + 5]);
+  length = without_extension(filename, output.get(), length);
+  memcpy(output.get() + length, ".iso", 5);
 
   auto count = get_offset(in, v);
 
-  std::ofstream out(output.ptr);
+  std::ofstream out(output.get());
 
   in.seekg(0, std::ios::beg);
-  allocated<char> chunk(chunksize);
+  std::unique_ptr<char[]> chunk(new char[chunksize]);
   while (count > 0) {
-    in.read(chunk.ptr, std::min(chunksize, count));
-    out.write(chunk.ptr, in.gcount());
+    in.read(chunk.get(), std::min(chunksize, count));
+    out.write(chunk.get(), in.gcount());
     count -= in.gcount();
   }
 }
