@@ -1,14 +1,8 @@
 #include <cstdint>
 #include <cstdio>
-#include <cstdlib>
-#include <cstring>
 
-#include <stdexcept>
+#include <fstream>
 
-#include <sys/errno.h>
-
-#include "errno_error.h"
-#include "file.h"
 #include "nrg_file.h"
 
 void info(const char *);
@@ -29,7 +23,11 @@ void print_hex(const uint8_t *buffer, int size) {
 }
 
 void info(const char *filename) {
-  file f(filename);
+  std::ifstream f(filename);
+  f.seekg(0, std::ios::end);
+  auto size = f.tellg();
+  f.seekg(0, std::ios::beg);
+
   auto v = get_version(f);
   if (v == nrg_version::none) {
     printf("%s: not an NRG file\n", filename);
@@ -39,9 +37,9 @@ void info(const char *filename) {
   auto offset = get_offset(f, v);
   printf("%lld\n", offset);
 
-  f.seek(offset, SEEK_SET);
-  auto footer_size = f.size - offset;
+  f.seekg(offset, std::ios::beg);
+  auto footer_size = size - offset;
   uint8_t *footer = (uint8_t *)std::calloc(footer_size, 1);
-  f.read(footer, 1, footer_size);
+  f.read(reinterpret_cast<char *>(footer), footer_size);
   print_hex(footer, footer_size);
 }
