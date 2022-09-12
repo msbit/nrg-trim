@@ -36,7 +36,6 @@ void trim(const std::string &input) {
 
   std::ofstream out(without_extension(input) + ".iso");
 
-  in.seekg(0, std::ios::beg);
   std::unique_ptr<char[]> chunk(new char[chunksize]);
   while (count > 0) {
     in.read(chunk.get(), std::min(chunksize, count));
