@@ -1,45 +1,94 @@
 #include <cstdint>
 #include <cstdio>
 
+#include <algorithm>
 #include <fstream>
 
 #include "nrg_file.h"
 
-void info(const char *);
+constexpr int64_t chunksize = 1024 * 1024;
+
+void trim(const char *);
+
+int without_extension(const char *, char *, int);
 
 int main(int argc, char **argv) {
   for (auto i = 1; i < argc; i++) {
-    info(argv[i]);
+    trim(argv[i]);
   }
 }
 
-void print_hex(const uint8_t *buffer, int size) {
-  for (auto i = 0; i < size; i++) {
-    printf("%02x", buffer[i]);
-    if ((i + 1) % 16 == 0) {
-      printf("\n");
+template <typename T> struct allocated {
+  T *ptr;
+
+  allocated(size_t size) : ptr(static_cast<T *>(malloc(size))) {
+    if (ptr == nullptr) {
+      throw std::runtime_error("malloc");
     }
   }
-}
 
-void info(const char *filename) {
-  std::ifstream f(filename);
-  f.seekg(0, std::ios::end);
-  auto size = f.tellg();
-  f.seekg(0, std::ios::beg);
+  ~allocated() { free(ptr); }
+};
 
-  auto v = get_version(f);
+void trim(const char *filename) {
+  std::ifstream in(filename);
+
+  auto v = get_version(in);
   if (v == nrg_version::none) {
     printf("%s: not an NRG file\n", filename);
     return;
   }
 
-  auto offset = get_offset(f, v);
-  printf("%lld\n", offset);
+  auto length = strlen(filename);
+  if (length > 1024) {
+    fprintf(stderr, "filename too big\n");
+    return;
+  }
 
-  f.seekg(offset, std::ios::beg);
-  auto footer_size = size - offset;
-  uint8_t *footer = (uint8_t *)std::calloc(footer_size, 1);
-  f.read(reinterpret_cast<char *>(footer), footer_size);
-  print_hex(footer, footer_size);
+  // enough space for original + '.iso\0'
+  allocated<char> output(length + 5);
+  length = without_extension(filename, output.ptr, length);
+  memcpy(output.ptr + length, ".iso", 5);
+
+  auto count = get_offset(in, v);
+
+  std::ofstream out(output.ptr);
+
+  in.seekg(0, std::ios::beg);
+  allocated<char> chunk(chunksize);
+  while (count > 0) {
+    in.read(chunk.ptr, std::min(chunksize, count));
+    out.write(chunk.ptr, in.gcount());
+    count -= in.gcount();
+  }
+}
+
+int without_extension(const char *input, char *output, int length) {
+  auto dotpos = strrchr(input, '.');
+  if (dotpos == nullptr || dotpos == input) {
+    // no '.' character in filename, or '.' is first character, copy it all
+    memcpy(output, input, length);
+    output[length] = '\0';
+    return length;
+  }
+
+  auto slashpos = strrchr(input, '/');
+  if (slashpos != nullptr && dotpos < slashpos) {
+    // filename contains '/' in position after '.', copy it all
+    memcpy(output, input, length);
+    output[length] = '\0';
+    return length;
+  }
+
+  if (slashpos != nullptr && (dotpos - slashpos) == 1) {
+    // filename contains '/.' for last slash and dot positions, copy it all
+    memcpy(output, input, length);
+    output[length] = '\0';
+    return length;
+  }
+
+  length = dotpos - input;
+  memcpy(output, input, length);
+  output[length] = '\0';
+  return length;
 }

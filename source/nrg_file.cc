@@ -6,7 +6,15 @@
 
 #include "nrg_file.h"
 
+struct rewinder final {
+  std::istream &stream;
+  rewinder(std::istream &stream) : stream(stream) {}
+  ~rewinder() { stream.seekg(0, std::ios::beg); }
+};
+
 nrg_version get_version(std::ifstream &f) {
+  rewinder r(f);
+
   f.seekg(-12, std::ios::end);
   uint8_t id[4];
   f.read(reinterpret_cast<char *>(id), 4);
@@ -23,6 +31,8 @@ nrg_version get_version(std::ifstream &f) {
 }
 
 int64_t get_offset(std::ifstream &f, nrg_version v) {
+  rewinder r(f);
+
   if (v == nrg_version::none) {
     throw std::invalid_argument("can't get offset for non-NRG file");
   }
